@@ -1,0 +1,10 @@
+CMakeCache.txt
+CMakeFiles
+Makefile
+.vscode
+fdtd
+
+*.cmake
+*.out
+*.md
+*.o
