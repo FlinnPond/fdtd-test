@@ -9,9 +9,13 @@ add_executable(fdtd
     main.cu
     fdtd.cu
     params.cu
+    plot.cu
 )
 
 set_target_properties(fdtd PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_ARCHITECTURES 86
+)
+target_link_libraries(fdtd PRIVATE 
+    boost_iostreams boost_system boost_filesystem
 )

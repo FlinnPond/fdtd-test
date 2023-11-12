@@ -110,7 +110,6 @@ __global__ void calc_fdtd_step_2d_xy(
         int c = x*pars.Ny + y;
         int left  = (x + off.lx)*pars.Ny + y + off.ly;
         int right = (x + off.rx)*pars.Ny + y + off.ry;
-        if (x==0)
         field1[c] += - pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
     }
 }

@@ -3,6 +3,8 @@ CMakeFiles
 Makefile
 .vscode
 fdtd
+data
+plots
 
 *.cmake
 *.out
