@@ -96,5 +96,24 @@ struct Params {
         check_err(cudaMemcpy(device.mu, host.mu, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
         check_err(cudaMemcpy(device.eps,host.eps,Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
     }
+
+    void free_memory() {
+        free(host.ex);
+        free(host.ey);
+        free(host.ez);
+        free(host.hx);
+        free(host.hy);
+        free(host.hz);
+        free(host.mu);
+        free(host.eps);
+        check_err(cudaFree(device.ex), "cleaning");
+        check_err(cudaFree(device.ey), "cleaning");
+        check_err(cudaFree(device.ez), "cleaning");
+        check_err(cudaFree(device.hx), "cleaning");
+        check_err(cudaFree(device.hy), "cleaning");
+        check_err(cudaFree(device.hz), "cleaning");
+        check_err(cudaFree(device.mu), "cleaning");
+        check_err(cudaFree(device.eps),"cleaning");
+    }
 };
 
