@@ -4,17 +4,10 @@
 
 __constant__ Params pars;
 
-__host__ void check_error(cudaError_t err, const char* step_name) {
-    if (err != cudaSuccess) {
-        fprintf(stderr, "Error during %s: %s.\n", step_name, cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-}
-
 __host__ void start_fdtd() {
     Params pars_h = Params();
     pars_h.init_pars();
-    check_error(cudaMemcpyToSymbol(pars, &pars_h, sizeof(Params)), "copying params to device");
+    check_err(cudaMemcpyToSymbol(pars, &pars_h, sizeof(Params)), "copying params to device");
 
     int threadsPerBlock = 8;
     int threadsPerBlockY = 4;

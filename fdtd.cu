@@ -9,12 +9,11 @@
 extern __constant__ Params pars;
 
 __global__ void calc_fdtd_step_x(
-    double* e, 
-    double* h1, 
-    double* h2,
-    double* j,
-    double* ca,
-    double* cb
+    ftype* e, 
+    ftype* h1, 
+    ftype* h2,
+    ftype* ca,
+    ftype* cb
 ) {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -24,17 +23,17 @@ __global__ void calc_fdtd_step_x(
         int zp = y*pars.Nx*pars.Nz + x*pars.Nz + z + 1;
         int yp = (y+1)*pars.Nx*pars.Nz + x*pars.Nz + z;
         e[c] = ca[c] * e[c] + cb[c] * (
-            h1[yp] - h1[c] - h2[zp] + h2[c] - j[c] * pars.dr
+            h1[yp] - h1[c] - h2[zp] + h2[c]
         );
     }
 }
 __global__ void calc_fdtd_step_y(
-    double* e, 
-    double* h1, 
-    double* h2,
-    double* j,
-    double* ca,
-    double* cb
+    ftype* e, 
+    ftype* h1, 
+    ftype* h2,
+    ftype* j,
+    ftype* ca,
+    ftype* cb
 ) {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -49,12 +48,12 @@ __global__ void calc_fdtd_step_y(
     }
 }
 __global__ void calc_fdtd_step_z(
-    double* e, 
-    double* h1, 
-    double* h2,
-    double* j,
-    double* ca,
-    double* cb
+    ftype* e, 
+    ftype* h1, 
+    ftype* h2,
+    ftype* j,
+    ftype* ca,
+    ftype* cb
 ) {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -70,9 +69,9 @@ __global__ void calc_fdtd_step_z(
 }
 
 __global__ void calc_ca(
-    double* ca,
-    double* sigma,
-    double* epsilon
+    ftype* ca,
+    ftype* sigma,
+    ftype* epsilon
 ) {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -85,9 +84,9 @@ __global__ void calc_ca(
 }
 
 __global__ void calc_cb(
-    double* cb,
-    double* sigma,
-    double* epsilon
+    ftype* cb,
+    ftype* sigma,
+    ftype* epsilon
 ) {
     int x = blockIdx.x*blockDim.x + threadIdx.x;
     int y = blockIdx.y*blockDim.y + threadIdx.y;
@@ -96,5 +95,42 @@ __global__ void calc_cb(
     if (x < pars.Nx && y < pars.Ny && z < pars.Nz) {
         cb[c] = (pars.dt / (2*epsilon[c]*pars.dr)) / 
         (1 + sigma[c] * pars.dt / (2*epsilon[c]));
+    }
+}
+
+__global__ void calc_fdtd_step_2d_xy(
+    ftype* field1,
+    ftype* field2z,
+    ftype* perm,
+    Offset off
+) {
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    if (x < pars.Nx-1 && y < pars.Ny-1 && x > 0 && y > 0) {
+        int c = x*pars.Ny + y;
+        int left  = (x + off.lx)*pars.Ny + y + off.ly;
+        int right = (x + off.rx)*pars.Ny + y + off.ry;
+        if (x==0)
+        field1[c] += - pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
+    }
+}
+
+__global__ void calc_fdtd_step_2d_z(
+    ftype* field1,
+    ftype* field2x,
+    ftype* field2y,
+    ftype* perm,
+    Offset off1,
+    Offset off2
+) {
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    if (x < pars.Nx-1 && y < pars.Ny-1 && x > 0 && y > 0) {
+        int c = x*pars.Ny + y;
+        int left1  = (x + off1.lx)*pars.Ny + y + off1.ly;
+        int right1 = (x + off1.rx)*pars.Ny + y + off1.ry;
+        int left2  = (x + off2.lx)*pars.Ny + y + off2.ly;
+        int right2 = (x + off2.rx)*pars.Ny + y + off2.ry;
+        field1[c] += - pars.c * pars.dt * (field2y[left1] - field2y[right1] - field2x[left2] + field2x[right2]) / (pars.dr * perm[c]);
     }
 }

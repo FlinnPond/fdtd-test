@@ -8,6 +8,7 @@ find_package(
 add_executable(fdtd 
     main.cu
     fdtd.cu
+    params.cu
 )
 
 set_target_properties(fdtd PROPERTIES
