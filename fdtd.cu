@@ -98,7 +98,23 @@ __global__ void calc_cb(
     }
 }
 
-__global__ void calc_fdtd_step_2d_xy(
+__global__ void calc_fdtd_step_2d_x(
+    ftype* field1,
+    ftype* field2z,
+    ftype* perm,
+    Offset off
+) {
+    int x = blockIdx.x*blockDim.x + threadIdx.x;
+    int y = blockIdx.y*blockDim.y + threadIdx.y;
+    if (x < pars.Nx-1 && y < pars.Ny-1 && x > 0 && y > 0) {
+        int c = x*pars.Ny + y;
+        int left  = (x + off.lx)*pars.Ny + y + off.ly;
+        int right = (x + off.rx)*pars.Ny + y + off.ry;
+        field1[c] += pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
+    }
+}
+
+__global__ void calc_fdtd_step_2d_y(
     ftype* field1,
     ftype* field2z,
     ftype* perm,
@@ -116,8 +132,8 @@ __global__ void calc_fdtd_step_2d_xy(
 
 __global__ void calc_fdtd_step_2d_z(
     ftype* field1,
-    ftype* field2x,
     ftype* field2y,
+    ftype* field2x,
     ftype* perm,
     Offset off1,
     Offset off2
@@ -132,4 +148,12 @@ __global__ void calc_fdtd_step_2d_z(
         int right2 = (x + off2.rx)*pars.Ny + y + off2.ry;
         field1[c] += - pars.c * pars.dt * (field2y[left1] - field2y[right1] - field2x[left2] + field2x[right2]) / (pars.dr * perm[c]);
     }
+}
+
+__global__ void inject_soft_source_2d(
+    ftype* field,
+    ftype value
+) {
+    int c = pars.source_x*pars.Ny + pars.source_y;
+    field[c] += value;
 }

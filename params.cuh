@@ -30,6 +30,9 @@ struct Params {
     int n_steps;
     int drop_rate;
 
+    int source_x, source_y, source_offset;
+    ftype source_width;
+
     Offset xm, ym, zm, xp, yp, zp;
 
     Data host,device;

@@ -8,19 +8,26 @@ __host__ void check_err(cudaError_t err, const char* step_name)
     }
 }
 void Params::init_pars() {
-    dr = 1e-6;
-    dt = 1e-8;
+    eps_0 = 8.854e-12;
+    mu_0 = 1.257e-6;
+    c = 3e8;
+
+    ftype max_freq = 1e9;
+    int n_steps_in_wave = 10;
+
+    source_x = 100;
+    source_y = 100;
+    source_offset = 100;
+    source_width = 0.5/max_freq;
+
+    dr = c / max_freq / n_steps_in_wave;
+    dt = min(source_width / n_steps_in_wave, dr / (c*2));
     Nx = 300;
     Ny = 300;
     Nz = 300;
-    eps_0 = 8.854e-12;
-    mu_0 = 1.257e-6;
     n_steps = 1000;
-
-    drop_rate = 100;
+    drop_rate = 10;
     
-    c = 3e8;
-
     xm.lx=0; xm.ly=0; xm.lz=0; xm.rx=-1;xm.ry=0; xm.rz=0;
     ym.lx=0; ym.ly=0; ym.lz=0; ym.rx=0; ym.ry=-1;ym.rz=0;
     zm.lx=0; zm.ly=0; zm.lz=0; zm.rx=0; zm.ry=0; zm.rz=-1;
