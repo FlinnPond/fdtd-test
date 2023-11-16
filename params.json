@@ -1,0 +1,14 @@
+{
+    "config": {
+        "maximum_frequency": 1e9,
+        "drop_rate": 30,
+        "n_steps": 1000
+    },
+    "source": {
+        "type": "gauss_pulse",
+        "gauss_pulse": {
+            "x_pos": 0.3,
+            "y_pos": 0.3
+        }
+    }
+}

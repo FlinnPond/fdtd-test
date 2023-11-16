@@ -1,0 +1,30 @@
+{
+    "config": {
+        "optimize_dr": true,
+        "optimize_dt": true,
+        "maximum_frequency": 1e9,
+        "n_steps_per_wave": 10,
+        "dimensions": 2,
+        "drop_rate": 30,
+        "n_steps": 1000
+    },
+    "domain": {
+        "size_x": 10,
+        "size_y": 10,
+        "size_z": 10
+    },
+    "numerical_params": {
+        "dr": 3e-2,
+        "dt": 5e-11
+    },
+    "source": {
+        "type": "gauss_pulse",
+        "gauss_pulse": {
+            "x_pos": 0.3,
+            "y_pos": 0.3,
+            "width": 5e-10,
+            "max_width": true,
+            "delay": 1e-9
+        }
+    }
+}

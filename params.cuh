@@ -25,10 +25,10 @@ struct Data {
 
 struct Params {
     ftype dr, dt;
-    int Nx, Ny, Nz;
     ftype eps_0, mu_0, c;
-    int n_steps;
-    int drop_rate;
+    int Nx, Ny, Nz;
+    int n_steps, drop_rate;
+    int dimensions;
 
     int source_x, source_y, source_offset;
     ftype source_width;
@@ -39,7 +39,7 @@ struct Params {
 
     Params() {}
 
-    void init_pars();
+    void init_pars(std::string filename = "");
     void init_memory_2d();
     void extract_data_2d();
     void free_memory();

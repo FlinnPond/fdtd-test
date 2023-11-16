@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 #include <cmath>
 #include "params.cuh"
 #include "fdtd.cuh"
@@ -6,9 +7,9 @@
 
 __constant__ Params pars;
 
-__host__ void start_fdtd() {
+__host__ void start_fdtd(std::string params_filename) {
     Params pars_h = Params();
-    pars_h.init_pars();
+    pars_h.init_pars(params_filename);
     pars_h.init_memory_2d();
     check_err(cudaMemcpyToSymbol(pars, &pars_h, sizeof(Params)), "copying params to device");
 
@@ -85,9 +86,18 @@ __host__ void start_fdtd() {
     pars_h.free_memory();
 }
 
-__host__ int main() {
-    start_fdtd();
-    std::cout << "Test run complete!\n";
+__host__ int main(int argc, char *argv[]) {
+    if (argc <= 1) {
+        std::cout << "Please, specify a .json file with simulation parameters\n";
+        return 1;
+    }
+    try {
+        start_fdtd(argv[1]);
+        std::cout << "Test run complete!\n";
+    }
+    catch (const std::string& message) {
+        std::cout << message << std::endl;
+    }    
 
     return 0;
 }

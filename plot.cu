@@ -22,6 +22,7 @@ void plot(ftype* data, Params& pars, std::string name, int step) {
     gp << "set terminal png \n set view map \n set pm3d at b corners2color c4 \n";
     gp << "set size ratio -1\n";
     gp << "set output \"plots/" << name << std::setfill('0') << std::setw(7) << step << ".png\"\n";
+    gp << "set title \"t = " << std::setprecision(3) << step * pars.dt << "\"\n";
     gp << "set cbrange [-0.025:0.025]\n";
     gp << "set palette model RGB \nset palette defined\n";
     gp << "splot \"data/data.txt\" u 1:2:3 with pm3d\n";
