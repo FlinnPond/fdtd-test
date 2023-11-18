@@ -2,13 +2,23 @@
     "config": {
         "maximum_frequency": 1e9,
         "drop_rate": 30,
-        "n_steps": 1000
+        "n_steps": 10000
     },
     "source": {
         "type": "gauss_pulse",
         "gauss_pulse": {
-            "x_pos": 0.3,
-            "y_pos": 0.3
+            "x_pos": 3,
+            "y_pos": 4
         }
+    },
+    "domain": {
+        "size_x": 10,
+        "size_y": 10,
+        "size_z": 10
+    },
+    "boundary_conditions": {
+        "x": "periodic",
+        "y": "periodic",
+        "z": "dirichlet"
     }
 }

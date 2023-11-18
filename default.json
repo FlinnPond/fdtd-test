@@ -26,5 +26,11 @@
             "max_width": true,
             "delay": 1e-9
         }
+    },
+    "boundary_conditions": {
+        "possible_values:": ["dirichlet", "periodic"],
+        "x": "dirichlet",
+        "y": "dirichlet",
+        "z": "dirichlet"
     }
 }

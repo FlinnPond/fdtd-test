@@ -33,12 +33,16 @@ void Params::init_pars(std::string filename) {
 
     std::fstream f("default.json");
     json params_default = json::parse(f);
+    json params_file;
+    if (filename != "") {
+        std::fstream p(filename);
+        params_file = json::parse(p);
 
-    std::fstream p(filename);
-    json params_file = json::parse(p);
-
-    default_if_missing(params_file, params_default);
-    std::cout << params_file.dump(4);
+        default_if_missing(params_file, params_default);
+    }
+    else {
+        params_file = params_default;
+    }
 
     ftype max_freq = static_cast<ftype>(params_file["config"]["maximum_frequency"]);
     int n_steps_in_wave = static_cast<int>(params_file["config"]["n_steps_per_wave"]);
@@ -65,7 +69,7 @@ void Params::init_pars(std::string filename) {
 
     if (src_type == "gauss_pulse") {
         source_x = static_cast<int>(static_cast<ftype>(params_file["source"]["gauss_pulse"]["x_pos"]) / dr);
-        source_y = static_cast<int>(static_cast<ftype>(params_file["source"]["gauss_pulse"]["x_pos"]) / dr);
+        source_y = static_cast<int>(static_cast<ftype>(params_file["source"]["gauss_pulse"]["y_pos"]) / dr);
         source_offset = static_cast<int>(static_cast<ftype>(params_file["source"]["gauss_pulse"]["delay"]) / dt);
         if (static_cast<bool>(params_file["source"]["gauss_pulse"]["max_width"])) {
             source_width = 0.5/max_freq;
@@ -81,6 +85,18 @@ void Params::init_pars(std::string filename) {
     Nx = static_cast<int>(static_cast<ftype>(params_file["domain"]["size_x"]) / dr);
     Ny = static_cast<int>(static_cast<ftype>(params_file["domain"]["size_y"]) / dr);
     Nz = static_cast<int>(static_cast<ftype>(params_file["domain"]["size_z"]) / dr);
+
+    std::string xbc_str = static_cast<std::string>(params_file["boundary_conditions"]["x"]);
+    std::string ybc_str = static_cast<std::string>(params_file["boundary_conditions"]["y"]);
+    std::string zbc_str = static_cast<std::string>(params_file["boundary_conditions"]["z"]);
+
+    if (xbc_str == "dirichlet") {xbc = 0;}
+    else {xbc = 1;}
+    if (ybc_str == "dirichlet") {ybc = 0;}
+    else {ybc = 1;}
+    if (zbc_str == "dirichlet") {zbc = 0;}
+    else {zbc = 1;}
+
     
     xm.lx=0; xm.ly=0; xm.lz=0; xm.rx=-1;xm.ry=0; xm.rz=0;
     ym.lx=0; ym.ly=0; ym.lz=0; ym.rx=0; ym.ry=-1;ym.rz=0;

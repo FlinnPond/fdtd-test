@@ -110,6 +110,13 @@ __global__ void calc_fdtd_step_2d_x(
         int c = x*pars.Ny + y;
         int left  = (x + off.lx)*pars.Ny + y + off.ly;
         int right = (x + off.rx)*pars.Ny + y + off.ry;
+        if (pars.ybc == 1) {
+            if (y == pars.Ny-2 && off.ly == 1) {
+                left = x * pars.Ny + 1;
+            } else if (y == 1 && off.ry == -1) {
+                right  = x * pars.Ny + pars.Ny-2;
+            }
+        }        
         field1[c] += pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
     }
 }
@@ -126,6 +133,13 @@ __global__ void calc_fdtd_step_2d_y(
         int c = x*pars.Ny + y;
         int left  = (x + off.lx)*pars.Ny + y + off.ly;
         int right = (x + off.rx)*pars.Ny + y + off.ry;
+        if (pars.xbc == 1) {
+            if (x == pars.Nx-2 && off.lx == 1) {
+                left = pars.Ny + y;
+            } else if (x == 1 && off.rx == -1) {
+                right  = (pars.Nx-2)*pars.Ny + y;
+            }
+        }
         field1[c] += - pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
     }
 }
@@ -146,6 +160,23 @@ __global__ void calc_fdtd_step_2d_z(
         int right1 = (x + off1.rx)*pars.Ny + y + off1.ry;
         int left2  = (x + off2.lx)*pars.Ny + y + off2.ly;
         int right2 = (x + off2.rx)*pars.Ny + y + off2.ry;
+        if (pars.xbc == 1) {
+            if (x == pars.Nx-2 && off1.lx == 1) {
+                left1 = 1 * pars.Ny + y;
+                // if (field2y[right1] != 0) {
+                //     printf("reflection!"); 
+                // }
+            } else if (x == 1 && off1.rx == -1) {
+                right1  = (pars.Nx-2)*pars.Ny + y;
+            }
+        }
+        if (pars.ybc == 1) {
+            if (y == pars.Ny-2 && off2.ly == 1) {
+                left2 = x * pars.Ny + 1;
+            } else if (y == 1 && off2.ry == -1) {
+                right2  = x * pars.Ny + pars.Ny-2;
+            }
+        }
         field1[c] += - pars.c * pars.dt * (field2y[left1] - field2y[right1] - field2x[left2] + field2x[right2]) / (pars.dr * perm[c]);
     }
 }

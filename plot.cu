@@ -11,8 +11,8 @@ void plot(ftype* data, Params& pars, std::string name, int step) {
     for (int x = 0; x < pars.Nx; x++){
         for (int y = 0; y < pars.Ny; y++) {
             int c = x * pars.Ny + y;
-            outfile << x << " ";
-            outfile << y << " ";
+            outfile << x * pars.dr << " ";
+            outfile << y * pars.dr << " ";
             outfile << data[c] << "\n";
         }
         outfile << "\n";

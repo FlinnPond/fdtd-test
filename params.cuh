@@ -3,7 +3,7 @@
 
 typedef double ftype;
 
-__host__ void check_err(cudaError_t err, const char* step_name = "?");
+void check_err(cudaError_t err, const char* step_name = "?");
 
 struct Offset {
 public:
@@ -29,6 +29,7 @@ struct Params {
     int Nx, Ny, Nz;
     int n_steps, drop_rate;
     int dimensions;
+    int xbc, ybc, zbc;
 
     int source_x, source_y, source_offset;
     ftype source_width;
