@@ -31,6 +31,11 @@
         "possible_values:": ["dirichlet", "periodic"],
         "x": "dirichlet",
         "y": "dirichlet",
-        "z": "dirichlet"
+        "z": "dirichlet",
+        "pml": {
+            "x_layers":0,
+            "y_layers":0,
+            "z_layers":0
+        }
     }
 }

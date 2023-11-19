@@ -101,6 +101,7 @@ __global__ void calc_cb(
 __global__ void calc_fdtd_step_2d_x(
     ftype* field1,
     ftype* field2z,
+    ftype* m,
     ftype* perm,
     Offset off
 ) {
@@ -117,13 +118,35 @@ __global__ void calc_fdtd_step_2d_x(
                 right  = x * pars.Ny + pars.Ny-2;
             }
         }        
-        field1[c] += pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
+        ftype curl = (field2z[left] - field2z[right]) / pars.dr;
+        if (x > pars.Nx - pars.Npx || x < pars.Npx || y > pars.Ny - pars.Npy || y < pars.Npy) {
+            int c_pml = 0;
+            if (x < pars.Npx) {
+                c_pml = x * pars.Ny + y;
+            } else if (x < pars.Nx - pars.Npx) {
+                c_pml = pars.Npx * pars.Ny + 2 * pars.Npy * (x - pars.Npx) + min (pars.Npy, y) + max(0, y - pars.Ny + pars.Npy);
+            } else {
+                c_pml = pars.Npx * pars.Ny + 2 * pars.Npy * (pars.Nx - 2 * pars.Npx) + pars.Ny * (x - pars.Nx + pars.Npx) + y;
+            }
+            int pml_size = (2*pars.Npx*pars.Ny+2*pars.Npy*pars.Nx-4*pars.Npx*pars.Npy);
+
+            m[c_pml + pml_size * 4] += curl;
+            m[c_pml + pml_size * 5] += field1[c];
+            field1[c] = m[c_pml] * field1[c] - 
+                        m[c_pml + pml_size] * curl - 
+                        m[c_pml + pml_size * 2] * m[c_pml + pml_size * 4] + 
+                        m[c_pml + pml_size * 3] * m[c_pml + pml_size * 5];
+        } 
+        else {
+            field1[c] += pars.c * pars.dt * curl / perm[c];
+        }
     }
 }
 
 __global__ void calc_fdtd_step_2d_y(
     ftype* field1,
     ftype* field2z,
+    ftype* m,
     ftype* perm,
     Offset off
 ) {
@@ -140,7 +163,28 @@ __global__ void calc_fdtd_step_2d_y(
                 right  = (pars.Nx-2)*pars.Ny + y;
             }
         }
-        field1[c] += - pars.c * pars.dt * (field2z[left] - field2z[right]) / (pars.dr * perm[c]);
+        ftype curl = - (field2z[left] - field2z[right]) / pars.dr;
+        if (x > pars.Nx - pars.Npx || x < pars.Npx || y > pars.Ny - pars.Npy || y < pars.Npy) {
+            int c_pml = 0;
+            if (x < pars.Npx) {
+                c_pml = x * pars.Ny + y;
+            } else if (x < pars.Nx - pars.Npx) {
+                c_pml = pars.Npx * pars.Ny + 2 * pars.Npy * (x - pars.Npx) + min (pars.Npy, y) + max(0, y - pars.Ny + pars.Npy);
+            } else {
+                c_pml = pars.Npx * pars.Ny + 2 * pars.Npy * (pars.Nx - 2 * pars.Npx) + pars.Ny * (x - pars.Nx + pars.Npx) + y;
+            }
+            int pml_size = (2*pars.Npx*pars.Ny+2*pars.Npy*pars.Nx-4*pars.Npx*pars.Npy);
+
+            m[c_pml + pml_size * 4] += curl;
+            m[c_pml + pml_size * 5] += field1[c];
+            field1[c] = m[c_pml] * field1[c] - 
+                        m[c_pml + pml_size] * curl - 
+                        m[c_pml + pml_size * 2] * m[c_pml + pml_size * 4] + 
+                        m[c_pml + pml_size * 3] * m[c_pml + pml_size * 5];
+        }
+        else {
+            field1[c] += pars.c * pars.dt * curl / perm[c];
+        }
     }
 }
 
@@ -148,6 +192,7 @@ __global__ void calc_fdtd_step_2d_z(
     ftype* field1,
     ftype* field2y,
     ftype* field2x,
+    ftype* m,
     ftype* perm,
     Offset off1,
     Offset off2
@@ -163,9 +208,6 @@ __global__ void calc_fdtd_step_2d_z(
         if (pars.xbc == 1) {
             if (x == pars.Nx-2 && off1.lx == 1) {
                 left1 = 1 * pars.Ny + y;
-                // if (field2y[right1] != 0) {
-                //     printf("reflection!"); 
-                // }
             } else if (x == 1 && off1.rx == -1) {
                 right1  = (pars.Nx-2)*pars.Ny + y;
             }
@@ -177,7 +219,28 @@ __global__ void calc_fdtd_step_2d_z(
                 right2  = x * pars.Ny + pars.Ny-2;
             }
         }
-        field1[c] += - pars.c * pars.dt * (field2y[left1] - field2y[right1] - field2x[left2] + field2x[right2]) / (pars.dr * perm[c]);
+        ftype curl = (field2y[left1] - field2y[right1] - field2x[left2] + field2x[right2]) / pars.dr;
+        if (x > pars.Nx - pars.Npx || x < pars.Npx || y > pars.Ny - pars.Npy || y < pars.Npy) {
+            int c_pml = 0;
+            if (x < pars.Npx) {
+                c_pml = x * pars.Ny + y;
+            } else if (x < pars.Nx - pars.Npx) {
+                c_pml = pars.Npx * pars.Ny + 2 * pars.Npy * (x - pars.Npx) + min (pars.Npy, y) + max(0, y - pars.Ny + pars.Npy);
+            } else {
+                c_pml = pars.Npx * pars.Ny + 2 * pars.Npy * (pars.Nx - 2 * pars.Npx) + pars.Ny * (x - pars.Nx + pars.Npx) + y;
+            }
+            int pml_size = (2*pars.Npx*pars.Ny+2*pars.Npy*pars.Nx-4*pars.Npx*pars.Npy);
+
+            m[c_pml + pml_size * 4] += curl;
+            m[c_pml + pml_size * 5] += field1[c];
+            field1[c] = m[c_pml] * field1[c] + 
+                        m[c_pml + pml_size] * curl + 
+                        m[c_pml + pml_size * 2] * m[c_pml + pml_size * 4] + 
+                        m[c_pml + pml_size * 3] * m[c_pml + pml_size * 5];
+        }
+        else {
+            field1[c] += - pars.c * pars.dt * curl / perm[c];
+        }
     }
 }
 

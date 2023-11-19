@@ -26,6 +26,20 @@ void default_if_missing(json& file, json& def) {
         }
     }
 }
+void Params::calc_m(ftype* m, int index, int index_pml, int pml_size, ftype sig1, ftype sig2, ftype sig3, ftype perm0, ftype* perm) {
+    sig1 *= perm0;
+    sig2 *= perm0;
+    sig3 *= perm0;
+    ftype m0 = 1 / dt + (sig1 + sig2) / (2 * perm0) + sig1 * sig2 * dt / (4 * perm0 * perm0);
+    m[index_pml] = 1/m0 *( 1 / dt - (sig1 + sig2) / (2 * perm0) - sig1 * sig2 * dt / (4 * perm0 * perm0));
+    m[index_pml + pml_size] = - 1/m0 * c / perm[index];
+    m[index_pml + pml_size*2] = -1/m0 * c * dt * sig3 / (perm0 * perm[index]);
+    m[index_pml + pml_size*3] = -1/m0 * dt * sig1 * sig2 * dt / (perm0 * perm0);
+    m[index_pml + pml_size*4] = 0;
+    m[index_pml + pml_size*5] = 0;
+    // std::cout << "c:" << c_pml << ", m1:" << m[c_pml] << ", m2" << m[c_pml + pml_size] << ", m3:" << m[c_pml + pml_size*2] << ", m4:" << m[c_pml + pml_size*3] << "\n";
+    
+}
 void Params::init_pars(std::string filename) {
     eps_0 = 8.854e-12;
     mu_0 = 1.257e-6;
@@ -82,21 +96,27 @@ void Params::init_pars(std::string filename) {
         }
     }
 
-    Nx = static_cast<int>(static_cast<ftype>(params_file["domain"]["size_x"]) / dr);
-    Ny = static_cast<int>(static_cast<ftype>(params_file["domain"]["size_y"]) / dr);
-    Nz = static_cast<int>(static_cast<ftype>(params_file["domain"]["size_z"]) / dr);
+    ftype Lx = static_cast<ftype>(params_file["domain"]["size_x"]);
+    ftype Ly = static_cast<ftype>(params_file["domain"]["size_y"]);
+    ftype Lz = static_cast<ftype>(params_file["domain"]["size_z"]);
+    Nx = static_cast<int>(Lx / dr);
+    Ny = static_cast<int>(Ly / dr);
+    Nz = static_cast<int>(Lz / dr);
+
+    Npx = static_cast<int>(params_file["boundary_conditions"]["pml"]["x_layers"]);
+    Npy = static_cast<int>(params_file["boundary_conditions"]["pml"]["y_layers"]);
+    Npz = static_cast<int>(params_file["boundary_conditions"]["pml"]["z_layers"]);
 
     std::string xbc_str = static_cast<std::string>(params_file["boundary_conditions"]["x"]);
     std::string ybc_str = static_cast<std::string>(params_file["boundary_conditions"]["y"]);
     std::string zbc_str = static_cast<std::string>(params_file["boundary_conditions"]["z"]);
 
-    if (xbc_str == "dirichlet") {xbc = 0;}
-    else {xbc = 1;}
-    if (ybc_str == "dirichlet") {ybc = 0;}
-    else {ybc = 1;}
-    if (zbc_str == "dirichlet") {zbc = 0;}
-    else {zbc = 1;}
-
+    if      (xbc_str == "dirichlet") {xbc = 0;}
+    else if (xbc_str == "periodic")  {xbc = 1;}
+    if      (ybc_str == "dirichlet") {ybc = 0;}
+    else if (xbc_str == "periodic")  {ybc = 1;}
+    if      (zbc_str == "dirichlet") {zbc = 0;}
+    else if (xbc_str == "periodic")  {zbc = 1;}
     
     xm.lx=0; xm.ly=0; xm.lz=0; xm.rx=-1;xm.ry=0; xm.rz=0;
     ym.lx=0; ym.ly=0; ym.lz=0; ym.rx=0; ym.ry=-1;ym.rz=0;
@@ -109,23 +129,36 @@ void Params::init_pars(std::string filename) {
 
 
 void Params::init_memory_2d() {
-    host.ex = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.ey = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.ez = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.hx = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.hy = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.hz = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.mu = (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
-    host.eps= (ftype*)(malloc(Nx*Ny*sizeof(ftype)));
+    int domain_size = Nx*Ny*sizeof(ftype);
+    int pml_size = (2*Npx*Ny+2*Npy*Nx-4*Npx*Npy)*12*sizeof(ftype);
+    int pml_len = 2*Npx*Ny+2*Npy*Nx-4*Npx*Npy;
+    std::cout << "domain sizes: " << Nx << " " << Ny << "\n";
+    std::cout << "domain_size: " << domain_size*8 << "\n";
+    std::cout << "pml_size: " << pml_size << "\n";
+    std::cout << "pml individual map size: " << (2*Npx*Ny+2*Npy*Nx-4*Npx*Npy)*12 << "\n";
+    host.ex = (ftype*)(malloc(domain_size));
+    host.ey = (ftype*)(malloc(domain_size));
+    host.ez = (ftype*)(malloc(domain_size));
+    host.hx = (ftype*)(malloc(domain_size));
+    host.hy = (ftype*)(malloc(domain_size));
+    host.hz = (ftype*)(malloc(domain_size));
+    host.mu = (ftype*)(malloc(domain_size));
+    host.eps= (ftype*)(malloc(domain_size));
+    host.pmlx = (ftype*)(malloc(pml_size));
+    host.pmly = (ftype*)(malloc(pml_size));
+    host.pmlz = (ftype*)(malloc(pml_size));
 
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.ex), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.ey), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.ez), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.hx), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.hy), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.hz), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.mu), Nx*Ny*sizeof(ftype)), "allocating");
-    check_err(cudaMalloc(reinterpret_cast<void **>(&device.eps),Nx*Ny*sizeof(ftype)), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.ex), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.ey), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.ez), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.hx), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.hy), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.hz), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.mu), domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.eps),domain_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.pmlx),pml_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.pmly),pml_size), "allocating");
+    check_err(cudaMalloc(reinterpret_cast<void **>(&device.pmlz),pml_size), "allocating");
 
     for (int x = 0; x < Nx; x++){
         for (int y = 0; y < Ny; y++) {
@@ -138,17 +171,66 @@ void Params::init_memory_2d() {
             host.hz[c] = 0;
             host.mu[c] = 1;
             host.eps[c]= 1;
+            if (x < Npx || x > Nx - Npx || y < Npy || y > Ny - Npy) {
+                ftype sig_x = 0;
+                ftype sig_y = 0;
+                ftype sig_z = 0;
+                ftype mag_sig_x = 0;
+                ftype mag_sig_y = 0;
+                ftype mag_sig_z = 0;
+
+                if (x < Npx) {
+                    sig_x = 1 / (2 * dt) * pow((ftype)(Npx - x) / Npx, 3);
+                    mag_sig_x = 1 / (2 * dt) * pow((ftype)(Npx - x + 0.5) / Npx, 3);
+                } else if (x > Nx - Npx) {
+                    sig_x = 1 / (2 * dt) * pow((ftype)(x - Nx + Npx) / Npx, 3);
+                    mag_sig_x = 1 / (2 * dt) * pow((ftype)(x - Nx + Npx + 0.5) / Npx, 3);
+                }
+                if (y < Npy) {
+                    sig_y = 1 / (2 * dt) * pow((ftype)(Npy - y) / Npy, 3);
+                    mag_sig_y = 1 / (2 * dt) * pow((ftype)(Npy - y + 0.5) / Npy, 3);
+                } else if (y > Ny - Npy) {
+                    sig_y = 1 / (2 * dt) * pow((ftype)(y - Ny + Npy) / Npy, 3);
+                    mag_sig_y = 1 / (2 * dt) * pow((ftype)(y - Ny + Npy + 0.5) / Npy, 3);
+                }
+
+                int c_pml = 0;
+                if (x < Npx) {
+                    c_pml = x * Ny + y;
+                } else if (x < Nx - Npx) {
+                    c_pml = Npx * Ny + 2 * Npy * (x - Npx) + min (Npy, y) + max(0, y - Ny + Npy);
+                } else {
+                    c_pml = Npx * Ny + 2 * Npy * (Nx - 2 * Npx) + Ny * (x - Nx + Npx) + y;
+                }
+                if (x == 200) {
+                    std::cout << sig_y*eps_0 << " ";
+                }
+                calc_m(host.pmlx+pml_len*0, c, c_pml, pml_len, sig_y, sig_z, sig_x, eps_0, host.eps);
+                calc_m(host.pmlx+pml_len*6, c, c_pml, pml_len, mag_sig_y, mag_sig_z, mag_sig_x, mu_0, host.mu);
+                calc_m(host.pmly+pml_len*0, c, c_pml, pml_len, sig_x, sig_z, sig_y, eps_0, host.eps);
+                calc_m(host.pmly+pml_len*6, c, c_pml, pml_len, mag_sig_x, mag_sig_z, mag_sig_y, mu_0, host.mu);
+                calc_m(host.pmlz+pml_len*0, c, c_pml, pml_len, sig_x, sig_y, sig_z, eps_0, host.eps);
+                calc_m(host.pmlz+pml_len*6, c, c_pml, pml_len, mag_sig_x, mag_sig_y, mag_sig_z, mu_0, host.mu);
+            }
+            else if (x == 200) {
+                std::cout << 0 << " ";
+            }
         }
     }
+    std::cout << "\n";
 
-    check_err(cudaMemcpy(device.ex, host.ex, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.ey, host.ey, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.ez, host.ez, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.hx, host.hx, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.hy, host.hy, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.hz, host.hz, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.mu, host.mu, Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
-    check_err(cudaMemcpy(device.eps,host.eps,Nx*Ny*sizeof(ftype), cudaMemcpyHostToDevice), "copying to device");
+
+    check_err(cudaMemcpy(device.ex, host.ex, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.ey, host.ey, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.ez, host.ez, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.hx, host.hx, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.hy, host.hy, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.hz, host.hz, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.mu, host.mu, domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.eps,host.eps,domain_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.pmlx, host.pmlx, pml_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.pmly, host.pmly, pml_size, cudaMemcpyHostToDevice), "copying to device");
+    check_err(cudaMemcpy(device.pmlz, host.pmlz, pml_size, cudaMemcpyHostToDevice), "copying to device");
 }
 void Params::extract_data_2d(){
     cudaMemcpy(host.ex,device.ex,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);

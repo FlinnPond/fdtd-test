@@ -2,7 +2,7 @@
     "config": {
         "maximum_frequency": 1e9,
         "drop_rate": 30,
-        "n_steps": 10000
+        "n_steps": 5000
     },
     "source": {
         "type": "gauss_pulse",
@@ -17,8 +17,12 @@
         "size_z": 10
     },
     "boundary_conditions": {
-        "x": "periodic",
-        "y": "periodic",
-        "z": "dirichlet"
+        "x": "dirichlet",
+        "y": "dirichlet",
+        "z": "dirichlet",
+        "pml": {
+            "x_layers":50,
+            "y_layers":50
+        }
     }
 }

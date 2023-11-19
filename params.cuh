@@ -12,21 +12,17 @@ public:
 };
 
 struct Data {
-    ftype* ex;
-    ftype* ey;
-    ftype* ez;
-    ftype* hx;
-    ftype* hy;
-    ftype* hz;
+    ftype *ex, *ey, *ez, *hx, *hy, *hz;
 
-    ftype* mu;
-    ftype* eps;
+    ftype *mu, *eps;
+    ftype *pmlx, *pmly, *pmlz;
 };
 
 struct Params {
     ftype dr, dt;
     ftype eps_0, mu_0, c;
-    int Nx, Ny, Nz;
+    int Nx, Ny, Nz, Np;
+    int Npx, Npy, Npz;
     int n_steps, drop_rate;
     int dimensions;
     int xbc, ybc, zbc;
@@ -40,6 +36,7 @@ struct Params {
 
     Params() {}
 
+    void calc_m(ftype* m, int c, int c_pml, int pml_size, ftype sig1, ftype sig2, ftype sig3, ftype perm0, ftype* perm);
     void init_pars(std::string filename = "");
     void init_memory_2d();
     void extract_data_2d();

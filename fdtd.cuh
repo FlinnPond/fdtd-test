@@ -14,12 +14,14 @@ __global__ void calc_cb(
 __global__ void calc_fdtd_step_2d_x(
     ftype* field1,
     ftype* field2z,
+    ftype* m,
     ftype* perm,
     Offset off
 );
 __global__ void calc_fdtd_step_2d_y(
     ftype* field1,
     ftype* field2z,
+    ftype* m,
     ftype* perm,
     Offset off
 );
@@ -27,6 +29,7 @@ __global__ void calc_fdtd_step_2d_z(
     ftype* field1,
     ftype* field2y,
     ftype* field2x,
+    ftype* m,
     ftype* perm,
     Offset off1,
     Offset off2
