@@ -1,12 +1,13 @@
+#include <filesystem>
 #include <fstream>
 #include <json.hpp>
 #include <iostream>
 
 #include "params.cuh"
 using json = nlohmann::json;
+namespace fs = std::filesystem;
 
-void check_err(cudaError_t err, const char* step_name)
- {
+void check_err(cudaError_t err, const char* step_name) {
     if (err != cudaSuccess) {
         fprintf(stderr, "Error during %s: %s.\n", step_name, cudaGetErrorString(err));
         exit(EXIT_FAILURE);
@@ -26,6 +27,20 @@ void default_if_missing(json& file, json& def) {
         }
     }
 }
+__host__ void try_create_dir(fs::path plots_path)
+{
+    auto directory_exists = fs::is_directory(plots_path);
+    if (!directory_exists) {
+        std::cout << "Creating directory: " << plots_path << "\n";
+        auto created_new_directory = fs::create_directory(plots_path);
+        if (!created_new_directory) {
+            std::cout << "Cannot create directory " << plots_path << std::endl;
+        }
+        else {
+            std::cout << "Directory " << plots_path << " successfully created!\n";
+        }
+    }
+}
 void Params::calc_m(ftype* m, int index, int index_pml, int pml_size, ftype sig1, ftype sig2, ftype sig3, ftype perm0, ftype* perm) {
     sig1 *= perm0;
     sig2 *= perm0;
@@ -36,27 +51,38 @@ void Params::calc_m(ftype* m, int index, int index_pml, int pml_size, ftype sig1
     m[index_pml + pml_size*2] = -1/m0 * c * dt * sig3 / (perm0 * perm[index]);
     m[index_pml + pml_size*3] = -1/m0 * dt * sig1 * sig2 * dt / (perm0 * perm0);
     m[index_pml + pml_size*4] = 0;
-    m[index_pml + pml_size*5] = 0;
-    // std::cout << "c:" << c_pml << ", m1:" << m[c_pml] << ", m2" << m[c_pml + pml_size] << ", m3:" << m[c_pml + pml_size*2] << ", m4:" << m[c_pml + pml_size*3] << "\n";
-    
+    m[index_pml + pml_size*5] = 0;    
 }
 void Params::init_pars(std::string filename) {
-    eps_0 = 8.854e-12;
-    mu_0 = 1.257e-6;
-    c = 3e8;
 
     std::fstream f("default.json");
     json params_default = json::parse(f);
     json params_file;
+
     if (filename != "") {
+        if (!std::filesystem::exists(filename)) throw ("Parameters file " + filename + " not found!");
         std::fstream p(filename);
         params_file = json::parse(p);
-
         default_if_missing(params_file, params_default);
     }
     else {
         params_file = params_default;
     }
+
+    std::cout << "Starting: " << static_cast<std::string>(params_file["output_directory"]) << "\n" << std::endl;
+    std::string plots_path_str = "plots/" + static_cast<std::string>(params_file["output_directory"]);
+    fs::path plots_path = static_cast<fs::path>(plots_path_str);
+    try_create_dir("plots");
+    try_create_dir("data");
+    try_create_dir(plots_path);
+
+    const std::string::size_type size = plots_path_str.size();
+    plots_path_cstr = new char[size + 1];
+    strcpy(plots_path_cstr, plots_path_str.c_str());
+
+    eps_0 = 8.854e-12;
+    mu_0 = 1.257e-6;
+    c = 3e8;
 
     ftype max_freq = static_cast<ftype>(params_file["config"]["maximum_frequency"]);
     int n_steps_in_wave = static_cast<int>(params_file["config"]["n_steps_per_wave"]);
@@ -132,10 +158,9 @@ void Params::init_memory_2d() {
     int domain_size = Nx*Ny*sizeof(ftype);
     int pml_size = (2*Npx*Ny+2*Npy*Nx-4*Npx*Npy)*12*sizeof(ftype);
     int pml_len = 2*Npx*Ny+2*Npy*Nx-4*Npx*Npy;
-    std::cout << "domain sizes: " << Nx << " " << Ny << "\n";
-    std::cout << "domain_size: " << domain_size*8 << "\n";
-    std::cout << "pml_size: " << pml_size << "\n";
-    std::cout << "pml individual map size: " << (2*Npx*Ny+2*Npy*Nx-4*Npx*Npy)*12 << "\n";
+    std::cout << "domain sizes : " << Nx << " " << Ny << "\n";
+    std::cout << "domain memory: " << domain_size*8 << "\n";
+    std::cout << "pml    memory: " << pml_size*3 << "\n";
     host.ex = (ftype*)(malloc(domain_size));
     host.ey = (ftype*)(malloc(domain_size));
     host.ez = (ftype*)(malloc(domain_size));
@@ -202,9 +227,6 @@ void Params::init_memory_2d() {
                 } else {
                     c_pml = Npx * Ny + 2 * Npy * (Nx - 2 * Npx) + Ny * (x - Nx + Npx) + y;
                 }
-                if (x == 200) {
-                    std::cout << sig_y*eps_0 << " ";
-                }
                 calc_m(host.pmlx+pml_len*0, c, c_pml, pml_len, sig_y, sig_z, sig_x, eps_0, host.eps);
                 calc_m(host.pmlx+pml_len*6, c, c_pml, pml_len, mag_sig_y, mag_sig_z, mag_sig_x, mu_0, host.mu);
                 calc_m(host.pmly+pml_len*0, c, c_pml, pml_len, sig_x, sig_z, sig_y, eps_0, host.eps);
@@ -212,13 +234,8 @@ void Params::init_memory_2d() {
                 calc_m(host.pmlz+pml_len*0, c, c_pml, pml_len, sig_x, sig_y, sig_z, eps_0, host.eps);
                 calc_m(host.pmlz+pml_len*6, c, c_pml, pml_len, mag_sig_x, mag_sig_y, mag_sig_z, mu_0, host.mu);
             }
-            else if (x == 200) {
-                std::cout << 0 << " ";
-            }
         }
     }
-    std::cout << "\n";
-
 
     check_err(cudaMemcpy(device.ex, host.ex, domain_size, cudaMemcpyHostToDevice), "copying to device");
     check_err(cudaMemcpy(device.ey, host.ey, domain_size, cudaMemcpyHostToDevice), "copying to device");
@@ -233,12 +250,12 @@ void Params::init_memory_2d() {
     check_err(cudaMemcpy(device.pmlz, host.pmlz, pml_size, cudaMemcpyHostToDevice), "copying to device");
 }
 void Params::extract_data_2d(){
-    cudaMemcpy(host.ex,device.ex,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.ey,device.ey,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.ez,device.ez,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.hx,device.hx,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.hy,device.hy,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
-    cudaMemcpy(host.hz,device.hz,Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host.ex, device.ex, Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host.ey, device.ey, Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host.ez, device.ez, Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host.hx, device.hx, Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host.hy, device.hy, Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(host.hz, device.hz, Nx*Ny*sizeof(double), cudaMemcpyDeviceToHost);
 }
 void Params::free_memory() {
     free(host.ex);
@@ -257,4 +274,5 @@ void Params::free_memory() {
     check_err(cudaFree(device.hz), "cleaning");
     check_err(cudaFree(device.mu), "cleaning");
     check_err(cudaFree(device.eps),"cleaning");
+    delete plots_path_cstr;
 }

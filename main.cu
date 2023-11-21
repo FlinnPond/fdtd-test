@@ -26,7 +26,7 @@ __host__ void start_fdtd(std::string params_filename) {
     dim3 gridShape2D(blocksPerGridX, blocksPerGridY);
 
     auto source { [](int step, Params& pars){return exp(-pow((step-pars.source_offset)*pars.dt/pars.source_width,2));} };
-
+    std::string plots_path = static_cast<std::string>(pars_h.plots_path_cstr);
     plot_funtion(source, pars_h, "source");
     int pml_offset = (2*pars_h.Npx*pars_h.Ny+2*pars_h.Npy*pars_h.Nx-4*pars_h.Npx*pars_h.Npy);
     std::cout << "starting sim\n";
@@ -88,8 +88,8 @@ __host__ void start_fdtd(std::string params_filename) {
 
         if (step%pars_h.drop_rate == 0) {
             pars_h.extract_data_2d();
+            std::cout << "step " << step << ", dt: " << pars_h.dt << ", dr = " << pars_h.dr;
             plot(pars_h.host.ez, pars_h, "ez", step);
-            std::cout << "step " << step << ", dt: " << pars_h.dt << ", dr = " << pars_h.dr << "\n";
         }
     }
     pars_h.free_memory();

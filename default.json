@@ -1,4 +1,5 @@
 {
+    "output_directory": "default_params",
     "config": {
         "optimize_dr": true,
         "optimize_dt": true,

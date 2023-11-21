@@ -1,4 +1,5 @@
 {
+    "output_directory": "test",
     "config": {
         "maximum_frequency": 1e9,
         "drop_rate": 30,

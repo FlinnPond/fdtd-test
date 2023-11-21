@@ -19,6 +19,7 @@ struct Data {
 };
 
 struct Params {
+    char* plots_path_cstr;
     ftype dr, dt;
     ftype eps_0, mu_0, c;
     int Nx, Ny, Nz, Np;
